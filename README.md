@@ -8,6 +8,8 @@
 - `ключ` - имя свойства
 - `значение` - значение свойства
 
+Если при парсинге входных данных отсутствует разделитель ключ-значение (знак равенства), то такая строка сохраняется в поле `propertyMatch`, которое можно получить с помощью метода `getPropertyMatch()`.
+
 Поддерживаются различные форматы окончания строк: LF (\n) и CRLF (\r\n).
 
 ## Использование
@@ -16,12 +18,22 @@
 #include "PropertyParser.h"
 
 PropertyParser parser;
+// Парсинг валидного свойства
 parser.feed("name=value\n", 11);
 if (parser.parseNext()) {
     if (parser.isValid()) {
         std::string name = parser.getPropertyName();
         std::string value = parser.getPropertyValue();
         // Обработка свойства
+    }
+}
+
+// Парсинг строки без разделителя
+parser.feed("invalid_string\n", 14);
+if (parser.parseNext()) {
+    if (!parser.isValid()) {
+        std::string match = parser.getPropertyMatch();
+        // Обработка строки без разделителя
     }
 }
 ```
@@ -35,6 +47,7 @@ if (parser.parseNext()) {
 - `bool isValid() const` - Проверка валидности последнего разобранного свойства
 - `const std::string& getPropertyName() const` - Получение имени свойства
 - `const std::string& getPropertyValue() const` - Получение значения свойства
+- `const std::string& getPropertyMatch() const` - Получение строки, не содержащей разделитель ключ-значение
 - `void reset()` - Сброс состояния парсера
 - `static bool matchesPattern(const std::string& str, const std::string& pattern)` - Проверка соответствия строки шаблону
 

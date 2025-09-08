@@ -46,6 +46,21 @@ bool PropertyParser::parseToken(const std::vector<char>& token) {
     // Find '=' position
     size_t eqPos = tokenStr.find('=');
     if (eqPos == std::string::npos) {
+        // No '=' found, store the entire token in propertyMatch_
+        propertyMatch_ = tokenStr;
+        
+        // Trim whitespace from propertyMatch_
+        size_t start = 0;
+        size_t end = propertyMatch_.size();
+        while (start < end && std::isspace(propertyMatch_[start])) start++;
+        while (end > start && std::isspace(propertyMatch_[end-1])) end--;
+        
+        if (start < end) {
+            propertyMatch_ = propertyMatch_.substr(start, end - start);
+        } else {
+            propertyMatch_.clear();
+        }
+        
         return false;
     }
     
@@ -77,6 +92,7 @@ bool PropertyParser::parseNext() {
     isValid_ = false;
     propertyName_.clear();
     propertyValue_.clear();
+    propertyMatch_.clear();
     
     size_t tokenStart, tokenEnd;
     if (!findTokenBoundary(tokenStart, tokenEnd)) {
@@ -111,10 +127,15 @@ const std::string& PropertyParser::getPropertyValue() const {
     return propertyValue_;
 }
 
+const std::string& PropertyParser::getPropertyMatch() const {
+    return propertyMatch_;
+}
+
 void PropertyParser::reset() {
     buffer_.clear();
     propertyName_.clear();
     propertyValue_.clear();
+    propertyMatch_.clear();
     isValid_ = false;
 }
 

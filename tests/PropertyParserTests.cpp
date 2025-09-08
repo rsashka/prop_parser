@@ -36,6 +36,63 @@ TEST(PropertyParserTest, MissingEquals) {
     EXPECT_FALSE(parser.isValid());
 }
 
+// Новые тесты для propertyMatch
+TEST(PropertyParserTest, PropertyMatchBasic) {
+    PropertyParser parser;
+    parser.feed("invalid\n", 8);
+    EXPECT_TRUE(parser.parseNext());
+    EXPECT_FALSE(parser.isValid());
+    EXPECT_EQ(parser.getPropertyMatch(), "invalid");
+}
+
+TEST(PropertyParserTest, PropertyMatchWithWhitespace) {
+    PropertyParser parser;
+    parser.feed("  invalid  \n", 12);
+    EXPECT_TRUE(parser.parseNext());
+    EXPECT_FALSE(parser.isValid());
+    EXPECT_EQ(parser.getPropertyMatch(), "invalid");
+}
+
+TEST(PropertyParserTest, PropertyMatchEmpty) {
+    PropertyParser parser;
+    parser.feed("\n", 1);
+    EXPECT_FALSE(parser.parseNext()); // Empty line should not be parsed
+}
+
+TEST(PropertyParserTest, PropertyMatchOnlyWhitespace) {
+    PropertyParser parser;
+    parser.feed("  \n", 3);
+    EXPECT_TRUE(parser.parseNext());
+    EXPECT_FALSE(parser.isValid());
+    EXPECT_EQ(parser.getPropertyMatch(), ""); // Only whitespace should result in empty match
+}
+
+TEST(PropertyParserTest, PropertyMatchWithCR) {
+    PropertyParser parser;
+    parser.feed("invalid\r\n", 9);
+    EXPECT_TRUE(parser.parseNext());
+    EXPECT_FALSE(parser.isValid());
+    EXPECT_EQ(parser.getPropertyMatch(), "invalid");
+}
+
+TEST(PropertyParserTest, PropertyMatchMixedWithValidProperties) {
+    PropertyParser parser;
+    parser.feed("valid=value\n", 12);
+    EXPECT_TRUE(parser.parseNext());
+    EXPECT_TRUE(parser.isValid());
+    EXPECT_EQ(parser.getPropertyName(), "valid");
+    EXPECT_EQ(parser.getPropertyValue(), "value");
+    EXPECT_EQ(parser.getPropertyMatch(), ""); // Should be empty for valid properties
+    
+    parser.feed("invalid\n", 8);
+    EXPECT_TRUE(parser.parseNext());
+    EXPECT_FALSE(parser.isValid());
+    EXPECT_EQ(parser.getPropertyMatch(), "invalid");
+    // Property name and value should be empty for invalid tokens
+    EXPECT_EQ(parser.getPropertyName(), "");
+    EXPECT_EQ(parser.getPropertyValue(), "");
+}
+
 TEST(PropertyParserTest, WhitespaceHandling) {
     PropertyParser parser;
     parser.feed("  name  =  value  \n", 19);

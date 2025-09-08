@@ -20,6 +20,7 @@ public:
     bool isValid() const;
     const std::string& getPropertyName() const;
     const std::string& getPropertyValue() const;
+    const std::string& getPropertyMatch() const;
     
     // Clear parser state
     void reset();
@@ -31,6 +32,7 @@ private:
     std::vector<char> buffer_;
     std::string propertyName_;
     std::string propertyValue_;
+    std::string propertyMatch_;
     bool isValid_;
     
     bool findTokenBoundary(size_t& start, size_t& end);
