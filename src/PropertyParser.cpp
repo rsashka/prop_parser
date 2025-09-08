@@ -3,40 +3,41 @@
 #include <cctype>
 #include <iostream>
 
-PropertyParser::PropertyParser() : isValid_(false) {}
+PropertyParser::PropertyParser(bool caseInsensitive) 
+    : m_isValid(false), m_caseInsensitive(caseInsensitive) {}
 
 void PropertyParser::feed(const std::vector<char>& data) {
-    buffer_.insert(buffer_.end(), data.begin(), data.end());
+    m_buffer.insert(m_buffer.end(), data.begin(), data.end());
 }
 
 void PropertyParser::feed(const char* data, size_t length) {
-    buffer_.insert(buffer_.end(), data, data + length);
+    m_buffer.insert(m_buffer.end(), data, data + length);
 }
 
 bool PropertyParser::findTokenBoundary(size_t& start, size_t& end) {
     // Skip leading CR/LF
     start = 0;
-    while (start < buffer_.size() && (buffer_[start] == '\n' || buffer_[start] == '\r')) {
+    while (start < m_buffer.size() && (m_buffer[start] == '\n' || m_buffer[start] == '\r')) {
         start++;
     }
     
-    if (start >= buffer_.size()) {
+    if (start >= m_buffer.size()) {
         return false;
     }
     
     // Find end of token (LF or CRLF)
     end = start;
-    while (end < buffer_.size()) {
-        if (buffer_[end] == '\n') {
+    while (end < m_buffer.size()) {
+        if (m_buffer[end] == '\n') {
             break;
         }
-        if (buffer_[end] == '\r' && (end + 1 < buffer_.size()) && buffer_[end+1] == '\n') {
+        if (m_buffer[end] == '\r' && (end + 1 < m_buffer.size()) && m_buffer[end+1] == '\n') {
             break;
         }
         end++;
     }
     
-    return end < buffer_.size();
+    return end < m_buffer.size();
 }
 
 bool PropertyParser::parseToken(const std::vector<char>& token) {
@@ -46,19 +47,25 @@ bool PropertyParser::parseToken(const std::vector<char>& token) {
     // Find '=' position
     size_t eqPos = tokenStr.find('=');
     if (eqPos == std::string::npos) {
-        // No '=' found, store the entire token in propertyMatch_
-        propertyMatch_ = tokenStr;
+        // No '=' found, store the entire token in m_propertyMatch
+        m_propertyMatch = tokenStr;
         
-        // Trim whitespace from propertyMatch_
+        // Trim whitespace from m_propertyMatch
         size_t start = 0;
-        size_t end = propertyMatch_.size();
-        while (start < end && std::isspace(propertyMatch_[start])) start++;
-        while (end > start && std::isspace(propertyMatch_[end-1])) end--;
+        size_t end = m_propertyMatch.size();
+        while (start < end && std::isspace(m_propertyMatch[start])) start++;
+        while (end > start && std::isspace(m_propertyMatch[end-1])) end--;
         
         if (start < end) {
-            propertyMatch_ = propertyMatch_.substr(start, end - start);
+            m_propertyMatch = m_propertyMatch.substr(start, end - start);
         } else {
-            propertyMatch_.clear();
+            m_propertyMatch.clear();
+        }
+        
+        // Convert property match to lowercase if case insensitive mode is enabled
+        if (m_caseInsensitive) {
+            std::transform(m_propertyMatch.begin(), m_propertyMatch.end(), m_propertyMatch.begin(), 
+                          [](unsigned char c){ return std::tolower(c); });
         }
         
         return false;
@@ -74,7 +81,13 @@ bool PropertyParser::parseToken(const std::vector<char>& token) {
         return false;
     }
     
-    propertyName_ = tokenStr.substr(nameStart, nameEnd - nameStart);
+    m_propertyName = tokenStr.substr(nameStart, nameEnd - nameStart);
+    
+    // Convert property name to lowercase if case insensitive mode is enabled
+    if (m_caseInsensitive) {
+        std::transform(m_propertyName.begin(), m_propertyName.end(), m_propertyName.begin(), 
+                      [](unsigned char c){ return std::tolower(c); });
+    }
     
     // Extract property value (trim only leading/trailing whitespace)
     size_t valueStart = eqPos + 1;
@@ -84,15 +97,15 @@ bool PropertyParser::parseToken(const std::vector<char>& token) {
     while (valueStart < valueEnd && std::isspace(tokenStr[valueStart])) valueStart++;
     while (valueEnd > valueStart && std::isspace(tokenStr[valueEnd-1])) valueEnd--;
     
-    propertyValue_ = tokenStr.substr(valueStart, valueEnd - valueStart);
+    m_propertyValue = tokenStr.substr(valueStart, valueEnd - valueStart);
     return true;
 }
 
 bool PropertyParser::parseNext() {
-    isValid_ = false;
-    propertyName_.clear();
-    propertyValue_.clear();
-    propertyMatch_.clear();
+    m_isValid = false;
+    m_propertyName.clear();
+    m_propertyValue.clear();
+    m_propertyMatch.clear();
     
     size_t tokenStart, tokenEnd;
     if (!findTokenBoundary(tokenStart, tokenEnd)) {
@@ -100,60 +113,72 @@ bool PropertyParser::parseNext() {
     }
     
     // Extract token
-    std::vector<char> token(buffer_.begin() + tokenStart, buffer_.begin() + tokenEnd);
+    std::vector<char> token(m_buffer.begin() + tokenStart, m_buffer.begin() + tokenEnd);
     
     // Parse the token
-    isValid_ = parseToken(token);
+    m_isValid = parseToken(token);
     
     // Remove processed data including the delimiter
     size_t removeEnd = tokenEnd;
-    if (removeEnd < buffer_.size() && buffer_[removeEnd] == '\r') removeEnd++;
-    if (removeEnd < buffer_.size() && buffer_[removeEnd] == '\n') removeEnd++;
+    if (removeEnd < m_buffer.size() && m_buffer[removeEnd] == '\r') removeEnd++;
+    if (removeEnd < m_buffer.size() && m_buffer[removeEnd] == '\n') removeEnd++;
     
-    buffer_.erase(buffer_.begin(), buffer_.begin() + removeEnd);
+    m_buffer.erase(m_buffer.begin(), m_buffer.begin() + removeEnd);
     
     return true;
 }
 
 bool PropertyParser::isValid() const {
-    return isValid_;
+    return m_isValid;
 }
 
 const std::string& PropertyParser::getPropertyName() const {
-    return propertyName_;
+    return m_propertyName;
 }
 
 const std::string& PropertyParser::getPropertyValue() const {
-    return propertyValue_;
+    return m_propertyValue;
 }
 
 const std::string& PropertyParser::getPropertyMatch() const {
-    return propertyMatch_;
+    return m_propertyMatch;
 }
 
 void PropertyParser::reset() {
-    buffer_.clear();
-    propertyName_.clear();
-    propertyValue_.clear();
-    propertyMatch_.clear();
-    isValid_ = false;
+    m_buffer.clear();
+    m_propertyName.clear();
+    m_propertyValue.clear();
+    m_propertyMatch.clear();
+    m_isValid = false;
 }
 
-bool PropertyParser::matchesPattern(const std::string& str, const std::string& pattern) {
+bool PropertyParser::matchesPattern(const std::string& str, const std::string& pattern, bool caseSensitive) {
+    // Create copies for case insensitive comparison
+    std::string strCopy = str;
+    std::string patternCopy = pattern;
+    
+    if (!caseSensitive) {
+        // Convert both strings to lowercase for comparison
+        std::transform(strCopy.begin(), strCopy.end(), strCopy.begin(), 
+                      [](unsigned char c){ return std::tolower(c); });
+        std::transform(patternCopy.begin(), patternCopy.end(), patternCopy.begin(), 
+                      [](unsigned char c){ return std::tolower(c); });
+    }
+    
     size_t strIndex = 0;
     size_t patternIndex = 0;
     size_t starIndex = std::string::npos;
     size_t matchIndex = 0;
     
-    while (strIndex < str.length()) {
+    while (strIndex < strCopy.length()) {
         // Если символы совпадают или в шаблоне '?'
-        if (patternIndex < pattern.length() && 
-            (pattern[patternIndex] == '?' || pattern[patternIndex] == str[strIndex])) {
+        if (patternIndex < patternCopy.length() && 
+            (patternCopy[patternIndex] == '?' || patternCopy[patternIndex] == strCopy[strIndex])) {
             strIndex++;
             patternIndex++;
         }
         // Если в шаблоне '*' - запоминаем его позицию
-        else if (patternIndex < pattern.length() && pattern[patternIndex] == '*') {
+        else if (patternIndex < patternCopy.length() && patternCopy[patternIndex] == '*') {
             starIndex = patternIndex;
             matchIndex = strIndex;
             patternIndex++;
@@ -171,10 +196,10 @@ bool PropertyParser::matchesPattern(const std::string& str, const std::string& p
     }
     
     // Проверяем, что оставшиеся символы в шаблоне - это только '*'
-    while (patternIndex < pattern.length() && pattern[patternIndex] == '*') {
+    while (patternIndex < patternCopy.length() && patternCopy[patternIndex] == '*') {
         patternIndex++;
     }
     
     // Совпадение есть, если мы дошли до конца шаблона
-    return patternIndex == pattern.length();
+    return patternIndex == patternCopy.length();
 }

@@ -17,13 +17,14 @@
 ```cpp
 #include "PropertyParser.h"
 
+// Создание парсера с регистрозависимым сравнением (по умолчанию)
 PropertyParser parser;
 // Парсинг валидного свойства
 parser.feed("name=value\n", 11);
 if (parser.parseNext()) {
     if (parser.isValid()) {
-        std::string name = parser.getPropertyName();
-        std::string value = parser.getPropertyValue();
+        std::string name = parser.getPropertyName(); // "name"
+        std::string value = parser.getPropertyValue(); // "value"
         // Обработка свойства
     }
 }
@@ -32,15 +33,40 @@ if (parser.parseNext()) {
 parser.feed("invalid_string\n", 14);
 if (parser.parseNext()) {
     if (!parser.isValid()) {
-        std::string match = parser.getPropertyMatch();
+        std::string match = parser.getPropertyMatch(); // "invalid_string"
         // Обработка строки без разделителя
+    }
+}
+
+// Создание парсера с регистронезависимым сравнением
+PropertyParser caseInsensitiveParser(true);
+caseInsensitiveParser.feed("Name=Value\n", 11);
+if (caseInsensitiveParser.parseNext()) {
+    if (caseInsensitiveParser.isValid()) {
+        std::string name = caseInsensitiveParser.getPropertyName(); // "name" (в нижнем регистре)
+        std::string value = caseInsensitiveParser.getPropertyValue(); // "Value" (без изменений)
+        // Обработка свойства
     }
 }
 ```
 
+### Пример использования сопоставления по шаблону
+
+```cpp
+#include "PropertyParser.h"
+
+// Регистрозависимое сопоставление (по умолчанию)
+bool match1 = PropertyParser::matchesPattern("com.example.MyTest", "com.example.*"); // true
+bool match2 = PropertyParser::matchesPattern("com.Example.MyTest", "com.example.*"); // false
+
+// Регистронезависимое сопоставление
+bool match3 = PropertyParser::matchesPattern("com.Example.MyTest", "com.example.*", false); // true
+bool match4 = PropertyParser::matchesPattern("COM.EXAMPLE.MYTEST", "com.example.*", false); // true
+```
+
 ## Методы класса PropertyParser
 
-- `PropertyParser()` - Конструктор
+- `PropertyParser(bool caseInsensitive = false)` - Конструктор с возможностью установки режима регистронезависимого сравнения
 - `void feed(const std::vector<char>& data)` - Передача данных для парсинга
 - `void feed(const char* data, size_t length)` - Передача данных для парсинга
 - `bool parseNext()` - Парсинг следующего токена
@@ -49,7 +75,7 @@ if (parser.parseNext()) {
 - `const std::string& getPropertyValue() const` - Получение значения свойства
 - `const std::string& getPropertyMatch() const` - Получение строки, не содержащей разделитель ключ-значение
 - `void reset()` - Сброс состояния парсера
-- `static bool matchesPattern(const std::string& str, const std::string& pattern)` - Проверка соответствия строки шаблону
+- `static bool matchesPattern(const std::string& str, const std::string& pattern, bool caseSensitive = true)` - Проверка соответствия строки шаблону с возможностью установки режима чувствительности к регистру
 
 ## Шаблоны
 

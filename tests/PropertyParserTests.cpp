@@ -220,3 +220,50 @@ TEST(PropertyParserTest, EdgeCasesPattern) {
     // Длинная строка
     EXPECT_TRUE(PropertyParser::matchesPattern("very.long.package.name.MyTest", "*.MyTest"));
 }
+
+// Case insensitive tests
+TEST(PropertyParserTest, CaseInsensitiveParsing) {
+    PropertyParser parser(true); // case insensitive mode
+    parser.feed("Name=Value\n", 11);
+    EXPECT_TRUE(parser.parseNext());
+    EXPECT_TRUE(parser.isValid());
+    EXPECT_EQ(parser.getPropertyName(), "name"); // Should be lowercase
+    EXPECT_EQ(parser.getPropertyValue(), "Value"); // Value should remain unchanged
+}
+
+TEST(PropertyParserTest, CaseSensitiveParsing) {
+    PropertyParser parser(false); // case sensitive mode (default)
+    parser.feed("Name=Value\n", 11);
+    EXPECT_TRUE(parser.parseNext());
+    EXPECT_TRUE(parser.isValid());
+    EXPECT_EQ(parser.getPropertyName(), "Name"); // Should remain as is
+    EXPECT_EQ(parser.getPropertyValue(), "Value");
+}
+
+TEST(PropertyParserTest, CaseInsensitivePatternMatching) {
+    // Test case insensitive pattern matching
+    EXPECT_TRUE(PropertyParser::matchesPattern("com.Example.MyTest", "com.example.*", false));
+    EXPECT_TRUE(PropertyParser::matchesPattern("COM.EXAMPLE.SUBPACKAGE.MYTEST", "com.*.mytest", false));
+    EXPECT_FALSE(PropertyParser::matchesPattern("com.other.MyTest", "com.example.*", false));
+    
+    // Test case sensitive pattern matching (default behavior)
+    EXPECT_FALSE(PropertyParser::matchesPattern("com.Example.MyTest", "com.example.*"));
+    EXPECT_TRUE(PropertyParser::matchesPattern("com.example.MyTest", "com.example.*"));
+}
+
+TEST(PropertyParserTest, MixedCaseProperties) {
+    PropertyParser parser(true); // case insensitive mode
+    parser.feed("MixedCaseName=MixedCaseValue\n", 29);
+    EXPECT_TRUE(parser.parseNext());
+    EXPECT_TRUE(parser.isValid());
+    EXPECT_EQ(parser.getPropertyName(), "mixedcasename"); // Should be lowercase
+    EXPECT_EQ(parser.getPropertyValue(), "MixedCaseValue"); // Value should remain unchanged
+}
+
+TEST(PropertyParserTest, CaseInsensitivePropertyMatch) {
+    PropertyParser parser(true); // case insensitive mode
+    parser.feed("InvalidString\n", 14);
+    EXPECT_TRUE(parser.parseNext());
+    EXPECT_FALSE(parser.isValid());
+    EXPECT_EQ(parser.getPropertyMatch(), "invalidstring"); // Should be lowercase
+}
