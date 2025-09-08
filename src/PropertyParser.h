@@ -23,6 +23,9 @@ public:
     
     // Clear parser state
     void reset();
+    
+    // Pattern matching functionality
+    static bool matchesPattern(const std::string& str, const std::string& pattern);
 
 private:
     std::vector<char> buffer_;

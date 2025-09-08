@@ -1,6 +1,7 @@
 #include "PropertyParser.h"
 #include <algorithm>
 #include <cctype>
+#include <iostream>
 
 PropertyParser::PropertyParser() : isValid_(false) {}
 
@@ -115,4 +116,44 @@ void PropertyParser::reset() {
     propertyName_.clear();
     propertyValue_.clear();
     isValid_ = false;
+}
+
+bool PropertyParser::matchesPattern(const std::string& str, const std::string& pattern) {
+    size_t strIndex = 0;
+    size_t patternIndex = 0;
+    size_t starIndex = std::string::npos;
+    size_t matchIndex = 0;
+    
+    while (strIndex < str.length()) {
+        // Если символы совпадают или в шаблоне '?'
+        if (patternIndex < pattern.length() && 
+            (pattern[patternIndex] == '?' || pattern[patternIndex] == str[strIndex])) {
+            strIndex++;
+            patternIndex++;
+        }
+        // Если в шаблоне '*' - запоминаем его позицию
+        else if (patternIndex < pattern.length() && pattern[patternIndex] == '*') {
+            starIndex = patternIndex;
+            matchIndex = strIndex;
+            patternIndex++;
+        }
+        // Если не совпадает и не '*', но был '*' ранее
+        else if (starIndex != std::string::npos) {
+            patternIndex = starIndex + 1;
+            matchIndex++;
+            strIndex = matchIndex;
+        }
+        // Если не совпадает и не было '*' ранее
+        else {
+            return false;
+        }
+    }
+    
+    // Проверяем, что оставшиеся символы в шаблоне - это только '*'
+    while (patternIndex < pattern.length() && pattern[patternIndex] == '*') {
+        patternIndex++;
+    }
+    
+    // Совпадение есть, если мы дошли до конца шаблона
+    return patternIndex == pattern.length();
 }

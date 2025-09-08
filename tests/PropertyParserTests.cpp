@@ -123,3 +123,43 @@ TEST(PropertyParserTest, EmptyName) {
     EXPECT_TRUE(parser.parseNext());
     EXPECT_FALSE(parser.isValid());
 }
+
+// Pattern matching tests
+TEST(PropertyParserTest, ExactMatchPattern) {
+    EXPECT_TRUE(PropertyParser::matchesPattern("com.example.MyTest", "com.example.MyTest"));
+    EXPECT_FALSE(PropertyParser::matchesPattern("com.example.MyTest", "com.example.OtherTest"));
+}
+
+TEST(PropertyParserTest, WildcardStarPattern) {
+    EXPECT_TRUE(PropertyParser::matchesPattern("com.example.MyTest", "com.example.*"));
+    EXPECT_TRUE(PropertyParser::matchesPattern("com.example.subpackage.MyTest", "com.example.*"));
+    EXPECT_FALSE(PropertyParser::matchesPattern("com.other.MyTest", "com.example.*"));
+}
+
+TEST(PropertyParserTest, WildcardQuestionPattern) {
+    EXPECT_TRUE(PropertyParser::matchesPattern("MyTest", "My?est"));
+    EXPECT_TRUE(PropertyParser::matchesPattern("MyTest", "??????"));
+    EXPECT_FALSE(PropertyParser::matchesPattern("MyTest", "?????"));
+}
+
+TEST(PropertyParserTest, ComplexPattern) {
+    EXPECT_TRUE(PropertyParser::matchesPattern("com.example.MyTest", "com.*.My?e??"));
+    EXPECT_TRUE(PropertyParser::matchesPattern("com.example.subpackage.MyTest", "com.**.MyTest"));
+    EXPECT_FALSE(PropertyParser::matchesPattern("com.example.MyTest", "com.*.Other?e??"));
+}
+
+TEST(PropertyParserTest, EdgeCasesPattern) {
+    // Пустая строка и шаблон
+    EXPECT_TRUE(PropertyParser::matchesPattern("", ""));
+    EXPECT_TRUE(PropertyParser::matchesPattern("", "*"));
+    EXPECT_FALSE(PropertyParser::matchesPattern("", "?"));
+    
+    // Только звездочки
+    EXPECT_TRUE(PropertyParser::matchesPattern("anything", "***"));
+    
+    // Совпадение с пустым шаблоном
+    EXPECT_TRUE(PropertyParser::matchesPattern("", ""));
+    
+    // Длинная строка
+    EXPECT_TRUE(PropertyParser::matchesPattern("very.long.package.name.MyTest", "*.MyTest"));
+}
