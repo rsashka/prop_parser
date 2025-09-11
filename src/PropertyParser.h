@@ -13,7 +13,7 @@ typedef void (*PropertyParserCallback)(void*, const PropertyParser&);
 
 class PropertyParser {
 public:
-    PropertyParser(bool caseInsensitive = false);
+    PropertyParser(size_t maxBufferSize, bool caseInsensitive = false);
     
     // Feed data to the parser and immediately try to parse with callback
     void feedAndParse(const char* data, size_t length, PropertyParserCallback callback = nullptr, void* callbackData = nullptr);

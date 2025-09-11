@@ -4,24 +4,46 @@
 #include <cstring>
 #include <iostream>
 
-PropertyParser::PropertyParser(bool caseInsensitive) 
-    : m_isValid(false), m_caseInsensitive(caseInsensitive) {}
+PropertyParser::PropertyParser(size_t maxBufferSize, bool caseInsensitive) 
+    : m_buffer(maxBufferSize), m_isValid(false), m_caseInsensitive(caseInsensitive) {
+    m_buffer.clear(); // Очищаем буфер, чтобы он был пустым при инициализации, но с зарезервированной вместимостью
+}
 
 
 void PropertyParser::feedAndParse(const char* data, size_t length, PropertyParserCallback callback, void* callbackData) {
-    // Add data to buffer
-    m_buffer.insert(m_buffer.end(), data, data + length);
-    
-    // Try to parse all available tokens immediately
-    while (true) {
-        // Try to parse next token
-        if (!parseNext()) {
-            break;
+    // Process data in blocks
+    size_t processed = 0;
+    while (processed < length) {
+        // Calculate how much data we can add to the buffer
+        size_t availableSpace = m_buffer.capacity() - m_buffer.size();
+        size_t toProcess = std::min(length - processed, availableSpace);
+        
+        // Add data to buffer
+        m_buffer.insert(m_buffer.end(), data + processed, data + processed + toProcess);
+        processed += toProcess;
+        
+        // If we have a complete line (ending with \n) or buffer is full, parse it
+        bool hasCompleteLine = false;
+        for (size_t i = m_buffer.size() - toProcess; i < m_buffer.size(); i++) {
+            if (m_buffer[i] == '\n') {
+                hasCompleteLine = true;
+                break;
+            }
         }
         
-        // Call callback if callback is set
-        if (callback && (m_isValid || !m_propertyMatch.empty())) {
-            callback(callbackData, *this);
+        // Try to parse all available tokens if we have a complete line or buffer is full
+        if (hasCompleteLine || m_buffer.size() >= m_buffer.capacity() || processed >= length) {
+            while (true) {
+                // Try to parse next token
+                if (!parseNext()) {
+                    break;
+                }
+                
+                // Call callback if callback is set
+                if (callback && (m_isValid || !m_propertyMatch.empty())) {
+                    callback(callbackData, *this);
+                }
+            }
         }
     }
 }
@@ -47,6 +69,13 @@ bool PropertyParser::findTokenBoundary(size_t& start, size_t& end) {
             break;
         }
         end++;
+    }
+    
+    // Если мы достигли конца буфера и не нашли завершающий символ новой строки,
+    // но буфер заполнен полностью, то обрабатываем все данные как один токен
+    if (end >= m_buffer.size() && m_buffer.size() >= m_buffer.capacity()) {
+        end = m_buffer.size();
+        return true;
     }
     
     return end < m_buffer.size();
@@ -135,7 +164,13 @@ bool PropertyParser::parseNext() {
     if (removeEnd < m_buffer.size() && m_buffer[removeEnd] == '\r') removeEnd++;
     if (removeEnd < m_buffer.size() && m_buffer[removeEnd] == '\n') removeEnd++;
     
-    m_buffer.erase(m_buffer.begin(), m_buffer.begin() + removeEnd);
+    // Если мы обработали все данные в буфере (включая случай, когда строка не содержит завершающего символа),
+    // то очищаем буфер полностью
+    if (removeEnd >= m_buffer.size()) {
+        m_buffer.clear();
+    } else {
+        m_buffer.erase(m_buffer.begin(), m_buffer.begin() + removeEnd);
+    }
     
     return true;
 }

@@ -78,7 +78,7 @@ TEST(PropertyParserTest, CaseInsensitivePatternMatching) {
 // Тесты для новой функциональности с callback-функцией
 TEST(PropertyParserTest, FeedAndParseWithValidProperty) {
     CallbackData callbackData;
-    PropertyParser parser(false);
+    PropertyParser parser(1024, false); // 1024 байт максимальный размер буфера
     
     parser.feedAndParse("name=value\n", 11, testCallback, &callbackData);
     
@@ -96,7 +96,7 @@ TEST(PropertyParserTest, FeedAndParseWithValidProperty) {
 
 TEST(PropertyParserTest, FeedAndParseWithInvalidProperty) {
     CallbackData callbackData;
-    PropertyParser parser(false);
+    PropertyParser parser(1024, false); // 1024 байт максимальный размер буфера
     
     parser.feedAndParse("invalid\n", 8, testCallback, &callbackData);
     
@@ -114,7 +114,7 @@ TEST(PropertyParserTest, FeedAndParseWithInvalidProperty) {
 
 TEST(PropertyParserTest, FeedAndParseMultipleProperties) {
     CallbackData callbackData;
-    PropertyParser parser(false);
+    PropertyParser parser(1024, false); // 1024 байт максимальный размер буфера
     
     parser.feedAndParse("a=1\nb=2\nc=3\n", 12, testCallback, &callbackData);
     
@@ -145,7 +145,7 @@ TEST(PropertyParserTest, FeedAndParseMultipleProperties) {
 
 TEST(PropertyParserTest, FeedAndParseMixedValidAndInvalid) {
     CallbackData callbackData;
-    PropertyParser parser(false);
+    PropertyParser parser(1024, false); // 1024 байт максимальный размер буфера
     
     parser.feedAndParse("valid=value\ninvalid\n", 20, testCallback, &callbackData);
     
@@ -169,7 +169,7 @@ TEST(PropertyParserTest, FeedAndParseMixedValidAndInvalid) {
 }
 
 TEST(PropertyParserTest, FeedAndParseWithNoCallback) {
-    PropertyParser parser(false);
+    PropertyParser parser(1024, false); // 1024 байт максимальный размер буфера
     
     // Should not crash and should parse correctly
     parser.feedAndParse("name=value\n", 11);
@@ -182,7 +182,7 @@ TEST(PropertyParserTest, FeedAndParseWithNoCallback) {
 
 TEST(PropertyParserTest, FeedAndParseEmptyData) {
     CallbackData callbackData;
-    PropertyParser parser(false);
+    PropertyParser parser(1024, false); // 1024 байт максимальный размер буфера
     
     parser.feedAndParse("", 0, testCallback, &callbackData);
     
@@ -192,7 +192,7 @@ TEST(PropertyParserTest, FeedAndParseEmptyData) {
 
 TEST(PropertyParserTest, FeedAndParsePartialData) {
     CallbackData callbackData;
-    PropertyParser parser(false);
+    PropertyParser parser(1024, false); // 1024 байт максимальный размер буфера
     
     // Feed partial data without terminator
     parser.feedAndParse("partial=token", 13, testCallback, &callbackData);
@@ -212,7 +212,7 @@ TEST(PropertyParserTest, FeedAndParsePartialData) {
 
 TEST(PropertyParserTest, FeedAndParseCaseInsensitive) {
     CallbackData callbackData;
-    PropertyParser parser(true); // case insensitive mode
+    PropertyParser parser(1024, true); // 1024 байт максимальный размер буфера, case insensitive mode
     
     parser.feedAndParse("Name=Value\n", 11, testCallback, &callbackData);
     
@@ -224,7 +224,7 @@ TEST(PropertyParserTest, FeedAndParseCaseInsensitive) {
 
 TEST(PropertyParserTest, FeedAndParseCaseInsensitivePropertyMatch) {
     CallbackData callbackData;
-    PropertyParser parser(true); // case insensitive mode
+    PropertyParser parser(1024, true); // 1024 байт максимальный размер буфера, case insensitive mode
     
     parser.feedAndParse("InvalidString\n", 14, testCallback, &callbackData);
     
@@ -232,4 +232,89 @@ TEST(PropertyParserTest, FeedAndParseCaseInsensitivePropertyMatch) {
     EXPECT_EQ(callbackData.propertyNames[0], ""); // No property name for invalid tokens
     EXPECT_EQ(callbackData.propertyMatches[0], "invalidstring"); // Should be lowercase
     EXPECT_FALSE(callbackData.isValidFlags[0]);
+}
+
+// Тест для проверки обработки данных размером больше, чем размер буфера
+TEST(PropertyParserTest, FeedAndParseLargeData) {
+    CallbackData callbackData;
+    PropertyParser parser(10, false); // Маленький буфер размером 10 байт
+    
+    // Данные размером больше, чем размер буфера
+    std::string largeData = "a=1\nb=2\nc=3\nd=4\ne=5\nf=6\ng=7\nh=8\ni=9\nj=10\nk=11\nl=12\nm=13\nn=14\no=15\n";
+    
+    parser.feedAndParse(largeData.c_str(), largeData.length(), testCallback, &callbackData);
+    
+    // Проверим, что все свойства были обработаны
+    EXPECT_EQ(callbackData.callCount, 15);
+    EXPECT_EQ(callbackData.propertyNames.size(), 15);
+    EXPECT_EQ(callbackData.propertyValues.size(), 15);
+    EXPECT_EQ(callbackData.propertyMatches.size(), 15);
+    EXPECT_EQ(callbackData.isValidFlags.size(), 15);
+    
+    // Проверим первые несколько свойств
+    EXPECT_EQ(callbackData.propertyNames[0], "a");
+    EXPECT_EQ(callbackData.propertyValues[0], "1");
+    EXPECT_EQ(callbackData.propertyNames[1], "b");
+    EXPECT_EQ(callbackData.propertyValues[1], "2");
+    EXPECT_EQ(callbackData.propertyNames[2], "c");
+    EXPECT_EQ(callbackData.propertyValues[2], "3");
+}
+
+// Тест для проверки обработки некорректных данных размером больше, чем размер буфера
+TEST(PropertyParserTest, FeedAndParseLargeInvalidData) {
+    CallbackData callbackData;
+    PropertyParser parser(10, false); // Маленький буфер размером 10 байт
+    
+    // Некорректные данные размером больше, чем размер буфера
+    std::string largeInvalidData = "invalid1\ninvalid2\ninvalid3\ninvalid4\ninvalid5\ninvalid6\ninvalid7\ninvalid8\ninvalid9\ninvalid10\ninvalid11\ninvalid12\ninvalid13\ninvalid14\ninvalid15\n";
+    
+    parser.feedAndParse(largeInvalidData.c_str(), largeInvalidData.length(), testCallback, &callbackData);
+    
+    // Проверим, что все строки были обработаны
+    EXPECT_EQ(callbackData.callCount, 15);
+    EXPECT_EQ(callbackData.propertyNames.size(), 15);
+    EXPECT_EQ(callbackData.propertyValues.size(), 15);
+    EXPECT_EQ(callbackData.propertyMatches.size(), 15);
+    EXPECT_EQ(callbackData.isValidFlags.size(), 15);
+    
+    // Проверим, что все строки являются некорректными (isValid = false)
+    for (int i = 0; i < 15; i++) {
+        EXPECT_FALSE(callbackData.isValidFlags[i]);
+        EXPECT_EQ(callbackData.propertyNames[i], "");
+        EXPECT_EQ(callbackData.propertyValues[i], "");
+    }
+    
+    // Проверим первые несколько значений propertyMatches
+    EXPECT_EQ(callbackData.propertyMatches[0], "invalid1");
+    EXPECT_EQ(callbackData.propertyMatches[1], "invalid2");
+    EXPECT_EQ(callbackData.propertyMatches[2], "invalid3");
+}
+
+// Тест для проверки обработки одной длинной некорректной строки размером больше, чем размер буфера
+TEST(PropertyParserTest, FeedAndParseSingleLargeInvalidLine) {
+    CallbackData callbackData;
+    PropertyParser parser(10, false); // Маленький буфер размером 10 байт
+    
+    // Одна длинная некорректная строка размером больше, чем размер буфера
+    std::string singleLargeInvalidLine = "this_is_a_very_long_invalid_line_that_exceeds_the_buffer_size_and_should_be_processed_correctly\n";
+    
+    parser.feedAndParse(singleLargeInvalidLine.c_str(), singleLargeInvalidLine.length(), testCallback, &callbackData);
+    
+    // Проверим, что строка была обработана частями
+    // Длина строки 85 символов, размер буфера 10 символов, значит будет 9 вызовов callback
+    EXPECT_EQ(callbackData.callCount, 10);
+    EXPECT_EQ(callbackData.propertyNames.size(), 10);
+    EXPECT_EQ(callbackData.propertyValues.size(), 10);
+    EXPECT_EQ(callbackData.propertyMatches.size(), 10);
+    EXPECT_EQ(callbackData.isValidFlags.size(), 10);
+    
+    // Проверим, что все части являются некорректными (isValid = false)
+    for (int i = 0; i < 9; i++) {
+        EXPECT_FALSE(callbackData.isValidFlags[i]);
+        EXPECT_EQ(callbackData.propertyNames[i], "");
+        EXPECT_EQ(callbackData.propertyValues[i], "");
+    }
+    
+    // Проверим значения propertyMatches для первых нескольких частей
+    EXPECT_EQ(callbackData.propertyMatches[0], "this_is_a_");
 }
