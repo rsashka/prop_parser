@@ -17,37 +17,30 @@
 ```cpp
 #include "PropertyParser.h"
 
-// Создание парсера с регистрозависимым сравнением (по умолчанию)
-PropertyParser parser;
-// Парсинг валидного свойства
-parser.feed("name=value\n", 11);
-if (parser.parseNext()) {
+// Определение callback-функции для обработки результатов парсинга
+void parseCallback(void* data, const PropertyParser& parser) {
     if (parser.isValid()) {
-        std::string name = parser.getPropertyName(); // "name"
-        std::string value = parser.getPropertyValue(); // "value"
-        // Обработка свойства
+        std::cout << "Найдено свойство: имя='" << parser.getPropertyName() 
+                  << "', значение='" << parser.getPropertyValue() << "'" << std::endl;
+    } else {
+        std::cout << "Некорректная строка: '" << parser.getPropertyMatch() << "'" << std::endl;
     }
 }
 
-// Парсинг строки без разделителя
-parser.feed("invalid_string\n", 14);
-if (parser.parseNext()) {
-    if (!parser.isValid()) {
-        std::string match = parser.getPropertyMatch(); // "invalid_string"
-        // Обработка строки без разделителя
-    }
-}
+// Создание парсера с регистрозависимым сравнением (по умолчанию)
+PropertyParser parser(false);
+
+// Парсинг валидного свойства с использованием callback-функции
+parser.feedAndParse("name=value\n", 11, parseCallback, nullptr);
+
+// Парсинг строки без разделителя с использованием callback-функции
+parser.feedAndParse("invalid_string\n", 15, parseCallback, nullptr);
 
 // Создание парсера с регистронезависимым сравнением
 PropertyParser caseInsensitiveParser(true);
-caseInsensitiveParser.feed("Name=Value\n", 11);
-if (caseInsensitiveParser.parseNext()) {
-    if (caseInsensitiveParser.isValid()) {
-        std::string name = caseInsensitiveParser.getPropertyName(); // "name" (в нижнем регистре)
-        std::string value = caseInsensitiveParser.getPropertyValue(); // "Value" (без изменений)
-        // Обработка свойства
-    }
-}
+
+// Парсинг свойства с регистронезависимым сравнением
+caseInsensitiveParser.feedAndParse("Name=Value\n", 11, parseCallback, nullptr);
 ```
 
 ### Пример использования сопоставления по шаблону
@@ -67,9 +60,8 @@ bool match4 = PropertyParser::matchesPattern("COM.EXAMPLE.MYTEST", "com.example.
 ## Методы класса PropertyParser
 
 - `PropertyParser(bool caseInsensitive = false)` - Конструктор с возможностью установки режима регистронезависимого сравнения
-- `void feed(const std::vector<char>& data)` - Передача данных для парсинга
-- `void feed(const char* data, size_t length)` - Передача данных для парсинга
-- `bool parseNext()` - Парсинг следующего токена
+- `void feedAndParse(const char* data, size_t length, PropertyParserCallback callback = nullptr, void* callbackData = nullptr)` - Передача данных для парсинга и немедленная обработка с вызовом callback-функции
+- `bool parseNext()` - Парсинг следующего токена (для внутреннего использования)
 - `bool isValid() const` - Проверка валидности последнего разобранного свойства
 - `const std::string& getPropertyName() const` - Получение имени свойства
 - `const std::string& getPropertyValue() const` - Получение значения свойства

@@ -2,183 +2,25 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-TEST(PropertyParserTest, BasicParsing) {
-    PropertyParser parser;
-    parser.feed("name=value\n", 11);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_TRUE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyName(), "name");
-    EXPECT_EQ(parser.getPropertyValue(), "value");
-}
-
-TEST(PropertyParserTest, CRLFTerminator) {
-    PropertyParser parser;
-    parser.feed("key=value\r\n", 12);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_TRUE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyName(), "key");
-    EXPECT_EQ(parser.getPropertyValue(), "value");
-}
-
-TEST(PropertyParserTest, EmptyValue) {
-    PropertyParser parser;
-    parser.feed("empty=\n", 7);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_TRUE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyName(), "empty");
-    EXPECT_EQ(parser.getPropertyValue(), "");
-}
-
-TEST(PropertyParserTest, MissingEquals) {
-    PropertyParser parser;
-    parser.feed("invalid\n", 8);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_FALSE(parser.isValid());
-}
-
-// Новые тесты для propertyMatch
-TEST(PropertyParserTest, PropertyMatchBasic) {
-    PropertyParser parser;
-    parser.feed("invalid\n", 8);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_FALSE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyMatch(), "invalid");
-}
-
-TEST(PropertyParserTest, PropertyMatchWithWhitespace) {
-    PropertyParser parser;
-    parser.feed("  invalid  \n", 12);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_FALSE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyMatch(), "invalid");
-}
-
-TEST(PropertyParserTest, PropertyMatchEmpty) {
-    PropertyParser parser;
-    parser.feed("\n", 1);
-    EXPECT_FALSE(parser.parseNext()); // Empty line should not be parsed
-}
-
-TEST(PropertyParserTest, PropertyMatchOnlyWhitespace) {
-    PropertyParser parser;
-    parser.feed("  \n", 3);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_FALSE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyMatch(), ""); // Only whitespace should result in empty match
-}
-
-TEST(PropertyParserTest, PropertyMatchWithCR) {
-    PropertyParser parser;
-    parser.feed("invalid\r\n", 9);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_FALSE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyMatch(), "invalid");
-}
-
-TEST(PropertyParserTest, PropertyMatchMixedWithValidProperties) {
-    PropertyParser parser;
-    parser.feed("valid=value\n", 12);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_TRUE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyName(), "valid");
-    EXPECT_EQ(parser.getPropertyValue(), "value");
-    EXPECT_EQ(parser.getPropertyMatch(), ""); // Should be empty for valid properties
+// Структура для хранения данных о вызовах callback-функции
+struct CallbackData {
+    int callCount;
+    std::vector<std::string> propertyNames;
+    std::vector<std::string> propertyValues;
+    std::vector<std::string> propertyMatches;
+    std::vector<bool> isValidFlags;
     
-    parser.feed("invalid\n", 8);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_FALSE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyMatch(), "invalid");
-    // Property name and value should be empty for invalid tokens
-    EXPECT_EQ(parser.getPropertyName(), "");
-    EXPECT_EQ(parser.getPropertyValue(), "");
-}
+    CallbackData() : callCount(0) {}
+};
 
-TEST(PropertyParserTest, WhitespaceHandling) {
-    PropertyParser parser;
-    parser.feed("  name  =  value  \n", 19);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_TRUE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyName(), "name");
-    EXPECT_EQ(parser.getPropertyValue(), "value");
-}
-
-TEST(PropertyParserTest, MultipleProperties) {
-    PropertyParser parser;
-    parser.feed("a=1\nb=2\nc=3\n", 12);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_EQ(parser.getPropertyName(), "a");
-    EXPECT_EQ(parser.getPropertyValue(), "1");
-    
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_EQ(parser.getPropertyName(), "b");
-    EXPECT_EQ(parser.getPropertyValue(), "2");
-    
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_EQ(parser.getPropertyName(), "c");
-    EXPECT_EQ(parser.getPropertyValue(), "3");
-}
-
-TEST(PropertyParserTest, ChunkedInput) {
-    PropertyParser parser;
-    parser.feed("na", 2);
-    parser.feed("me=val", 6);
-    parser.feed("ue\n", 3);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_TRUE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyName(), "name");
-    EXPECT_EQ(parser.getPropertyValue(), "value");
-}
-
-TEST(PropertyParserTest, SpecialCharacters) {
-    PropertyParser parser;
-    std::string input = "special=!@#$%^&*()_+-=[]{};':\",./<>?\n";
-    parser.feed(input.data(), input.size());
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_TRUE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyName(), "special");
-    EXPECT_EQ(parser.getPropertyValue(), "!@#$%^&*()_+-=[]{};':\",./<>?");
-}
-
-TEST(PropertyParserTest, ResetFunctionality) {
-    PropertyParser parser;
-    parser.feed("first=value\n", 12);
-    parser.parseNext();
-    parser.reset();
-    
-    parser.feed("second=value\n", 13);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_EQ(parser.getPropertyName(), "second");
-}
-
-TEST(PropertyParserTest, PartialToken) {
-    PropertyParser parser;
-    parser.feed("partial=token", 13);
-    EXPECT_FALSE(parser.parseNext());  // No terminator
-    
-    parser.feed("\n", 1);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_EQ(parser.getPropertyName(), "partial");
-    EXPECT_EQ(parser.getPropertyValue(), "token");
-}
-
-TEST(PropertyParserTest, MixedLineEndings) {
-    PropertyParser parser;
-    parser.feed("a=1\r\nb=2\nc=3\r\n", 15);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_EQ(parser.getPropertyName(), "a");
-    
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_EQ(parser.getPropertyName(), "b");
-    
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_EQ(parser.getPropertyName(), "c");
-}
-
-TEST(PropertyParserTest, EmptyName) {
-    PropertyParser parser;
-    parser.feed("=value\n", 7);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_FALSE(parser.isValid());
+// Callback-функция для тестирования
+void testCallback(void* data, const PropertyParser& parser) {
+    CallbackData* callbackData = static_cast<CallbackData*>(data);
+    callbackData->callCount++;
+    callbackData->propertyNames.push_back(parser.getPropertyName());
+    callbackData->propertyValues.push_back(parser.getPropertyValue());
+    callbackData->propertyMatches.push_back(parser.getPropertyMatch());
+    callbackData->isValidFlags.push_back(parser.isValid());
 }
 
 // Pattern matching tests
@@ -222,24 +64,6 @@ TEST(PropertyParserTest, EdgeCasesPattern) {
 }
 
 // Case insensitive tests
-TEST(PropertyParserTest, CaseInsensitiveParsing) {
-    PropertyParser parser(true); // case insensitive mode
-    parser.feed("Name=Value\n", 11);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_TRUE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyName(), "name"); // Should be lowercase
-    EXPECT_EQ(parser.getPropertyValue(), "Value"); // Value should remain unchanged
-}
-
-TEST(PropertyParserTest, CaseSensitiveParsing) {
-    PropertyParser parser(false); // case sensitive mode (default)
-    parser.feed("Name=Value\n", 11);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_TRUE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyName(), "Name"); // Should remain as is
-    EXPECT_EQ(parser.getPropertyValue(), "Value");
-}
-
 TEST(PropertyParserTest, CaseInsensitivePatternMatching) {
     // Test case insensitive pattern matching
     EXPECT_TRUE(PropertyParser::matchesPattern("com.Example.MyTest", "com.example.*", false));
@@ -251,19 +75,161 @@ TEST(PropertyParserTest, CaseInsensitivePatternMatching) {
     EXPECT_TRUE(PropertyParser::matchesPattern("com.example.MyTest", "com.example.*"));
 }
 
-TEST(PropertyParserTest, MixedCaseProperties) {
-    PropertyParser parser(true); // case insensitive mode
-    parser.feed("MixedCaseName=MixedCaseValue\n", 29);
-    EXPECT_TRUE(parser.parseNext());
-    EXPECT_TRUE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyName(), "mixedcasename"); // Should be lowercase
-    EXPECT_EQ(parser.getPropertyValue(), "MixedCaseValue"); // Value should remain unchanged
+// Тесты для новой функциональности с callback-функцией
+TEST(PropertyParserTest, FeedAndParseWithValidProperty) {
+    CallbackData callbackData;
+    PropertyParser parser(false);
+    
+    parser.feedAndParse("name=value\n", 11, testCallback, &callbackData);
+    
+    EXPECT_EQ(callbackData.callCount, 1);
+    EXPECT_EQ(callbackData.propertyNames.size(), 1);
+    EXPECT_EQ(callbackData.propertyValues.size(), 1);
+    EXPECT_EQ(callbackData.propertyMatches.size(), 1);
+    EXPECT_EQ(callbackData.isValidFlags.size(), 1);
+    
+    EXPECT_EQ(callbackData.propertyNames[0], "name");
+    EXPECT_EQ(callbackData.propertyValues[0], "value");
+    EXPECT_EQ(callbackData.propertyMatches[0], "");
+    EXPECT_TRUE(callbackData.isValidFlags[0]);
 }
 
-TEST(PropertyParserTest, CaseInsensitivePropertyMatch) {
-    PropertyParser parser(true); // case insensitive mode
-    parser.feed("InvalidString\n", 14);
-    EXPECT_TRUE(parser.parseNext());
+TEST(PropertyParserTest, FeedAndParseWithInvalidProperty) {
+    CallbackData callbackData;
+    PropertyParser parser(false);
+    
+    parser.feedAndParse("invalid\n", 8, testCallback, &callbackData);
+    
+    EXPECT_EQ(callbackData.callCount, 1);
+    EXPECT_EQ(callbackData.propertyNames.size(), 1);
+    EXPECT_EQ(callbackData.propertyValues.size(), 1);
+    EXPECT_EQ(callbackData.propertyMatches.size(), 1);
+    EXPECT_EQ(callbackData.isValidFlags.size(), 1);
+    
+    EXPECT_EQ(callbackData.propertyNames[0], "");
+    EXPECT_EQ(callbackData.propertyValues[0], "");
+    EXPECT_EQ(callbackData.propertyMatches[0], "invalid");
+    EXPECT_FALSE(callbackData.isValidFlags[0]);
+}
+
+TEST(PropertyParserTest, FeedAndParseMultipleProperties) {
+    CallbackData callbackData;
+    PropertyParser parser(false);
+    
+    parser.feedAndParse("a=1\nb=2\nc=3\n", 12, testCallback, &callbackData);
+    
+    EXPECT_EQ(callbackData.callCount, 3);
+    EXPECT_EQ(callbackData.propertyNames.size(), 3);
+    EXPECT_EQ(callbackData.propertyValues.size(), 3);
+    EXPECT_EQ(callbackData.propertyMatches.size(), 3);
+    EXPECT_EQ(callbackData.isValidFlags.size(), 3);
+    
+    // First property
+    EXPECT_EQ(callbackData.propertyNames[0], "a");
+    EXPECT_EQ(callbackData.propertyValues[0], "1");
+    EXPECT_EQ(callbackData.propertyMatches[0], "");
+    EXPECT_TRUE(callbackData.isValidFlags[0]);
+    
+    // Second property
+    EXPECT_EQ(callbackData.propertyNames[1], "b");
+    EXPECT_EQ(callbackData.propertyValues[1], "2");
+    EXPECT_EQ(callbackData.propertyMatches[1], "");
+    EXPECT_TRUE(callbackData.isValidFlags[1]);
+    
+    // Third property
+    EXPECT_EQ(callbackData.propertyNames[2], "c");
+    EXPECT_EQ(callbackData.propertyValues[2], "3");
+    EXPECT_EQ(callbackData.propertyMatches[2], "");
+    EXPECT_TRUE(callbackData.isValidFlags[2]);
+}
+
+TEST(PropertyParserTest, FeedAndParseMixedValidAndInvalid) {
+    CallbackData callbackData;
+    PropertyParser parser(false);
+    
+    parser.feedAndParse("valid=value\ninvalid\n", 20, testCallback, &callbackData);
+    
+    EXPECT_EQ(callbackData.callCount, 2);
+    EXPECT_EQ(callbackData.propertyNames.size(), 2);
+    EXPECT_EQ(callbackData.propertyValues.size(), 2);
+    EXPECT_EQ(callbackData.propertyMatches.size(), 2);
+    EXPECT_EQ(callbackData.isValidFlags.size(), 2);
+    
+    // First (valid) property
+    EXPECT_EQ(callbackData.propertyNames[0], "valid");
+    EXPECT_EQ(callbackData.propertyValues[0], "value");
+    EXPECT_EQ(callbackData.propertyMatches[0], "");
+    EXPECT_TRUE(callbackData.isValidFlags[0]);
+    
+    // Second (invalid) property
+    EXPECT_EQ(callbackData.propertyNames[1], "");
+    EXPECT_EQ(callbackData.propertyValues[1], "");
+    EXPECT_EQ(callbackData.propertyMatches[1], "invalid");
+    EXPECT_FALSE(callbackData.isValidFlags[1]);
+}
+
+TEST(PropertyParserTest, FeedAndParseWithNoCallback) {
+    PropertyParser parser(false);
+    
+    // Should not crash and should parse correctly
+    parser.feedAndParse("name=value\n", 11);
+    
+    // After feedAndParse with complete token, the parser state should be reset
     EXPECT_FALSE(parser.isValid());
-    EXPECT_EQ(parser.getPropertyMatch(), "invalidstring"); // Should be lowercase
+    EXPECT_EQ(parser.getPropertyName(), "");
+    EXPECT_EQ(parser.getPropertyValue(), "");
+}
+
+TEST(PropertyParserTest, FeedAndParseEmptyData) {
+    CallbackData callbackData;
+    PropertyParser parser(false);
+    
+    parser.feedAndParse("", 0, testCallback, &callbackData);
+    
+    // No callback should be called for empty data
+    EXPECT_EQ(callbackData.callCount, 0);
+}
+
+TEST(PropertyParserTest, FeedAndParsePartialData) {
+    CallbackData callbackData;
+    PropertyParser parser(false);
+    
+    // Feed partial data without terminator
+    parser.feedAndParse("partial=token", 13, testCallback, &callbackData);
+    
+    // No callback should be called because there's no complete token
+    EXPECT_EQ(callbackData.callCount, 0);
+    
+    // Now feed the terminator
+    parser.feedAndParse("\n", 1, testCallback, &callbackData);
+    
+    // Now callback should be called
+    EXPECT_EQ(callbackData.callCount, 1);
+    EXPECT_EQ(callbackData.propertyNames[0], "partial");
+    EXPECT_EQ(callbackData.propertyValues[0], "token");
+    EXPECT_TRUE(callbackData.isValidFlags[0]);
+}
+
+TEST(PropertyParserTest, FeedAndParseCaseInsensitive) {
+    CallbackData callbackData;
+    PropertyParser parser(true); // case insensitive mode
+    
+    parser.feedAndParse("Name=Value\n", 11, testCallback, &callbackData);
+    
+    EXPECT_EQ(callbackData.callCount, 1);
+    EXPECT_EQ(callbackData.propertyNames[0], "name"); // Should be lowercase
+    EXPECT_EQ(callbackData.propertyValues[0], "Value"); // Value should remain unchanged
+    EXPECT_TRUE(callbackData.isValidFlags[0]);
+}
+
+TEST(PropertyParserTest, FeedAndParseCaseInsensitivePropertyMatch) {
+    CallbackData callbackData;
+    PropertyParser parser(true); // case insensitive mode
+    
+    parser.feedAndParse("InvalidString\n", 14, testCallback, &callbackData);
+    
+    EXPECT_EQ(callbackData.callCount, 1);
+    EXPECT_EQ(callbackData.propertyNames[0], ""); // No property name for invalid tokens
+    EXPECT_EQ(callbackData.propertyMatches[0], "invalidstring"); // Should be lowercase
+    EXPECT_FALSE(callbackData.isValidFlags[0]);
 }

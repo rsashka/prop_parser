@@ -5,13 +5,18 @@
 #include <string>
 #include <cstddef>
 
+// Forward declaration for callback function
+class PropertyParser;
+
+// Callback function type: takes a void pointer and a reference to the parser object
+typedef void (*PropertyParserCallback)(void*, const PropertyParser&);
+
 class PropertyParser {
 public:
     PropertyParser(bool caseInsensitive = false);
     
-    // Feed data to the parser
-    void feed(const std::vector<char>& data);
-    void feed(const char* data, size_t length);
+    // Feed data to the parser and immediately try to parse with callback
+    void feedAndParse(const char* data, size_t length, PropertyParserCallback callback = nullptr, void* callbackData = nullptr);
     
     // Parse next token
     bool parseNext();

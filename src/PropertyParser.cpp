@@ -1,17 +1,29 @@
 #include "PropertyParser.h"
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <iostream>
 
 PropertyParser::PropertyParser(bool caseInsensitive) 
     : m_isValid(false), m_caseInsensitive(caseInsensitive) {}
 
-void PropertyParser::feed(const std::vector<char>& data) {
-    m_buffer.insert(m_buffer.end(), data.begin(), data.end());
-}
 
-void PropertyParser::feed(const char* data, size_t length) {
+void PropertyParser::feedAndParse(const char* data, size_t length, PropertyParserCallback callback, void* callbackData) {
+    // Add data to buffer
     m_buffer.insert(m_buffer.end(), data, data + length);
+    
+    // Try to parse all available tokens immediately
+    while (true) {
+        // Try to parse next token
+        if (!parseNext()) {
+            break;
+        }
+        
+        // Call callback if callback is set
+        if (callback && (m_isValid || !m_propertyMatch.empty())) {
+            callback(callbackData, *this);
+        }
+    }
 }
 
 bool PropertyParser::findTokenBoundary(size_t& start, size_t& end) {
