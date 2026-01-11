@@ -7,22 +7,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Create library
 add_library(prop_parser STATIC
-    src/PropertyParser.cpp
+    PropertyParser.cpp
 )
 
 # Include directories
 target_include_directories(prop_parser PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # GoogleTest setup
-enable_testing()
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 # Create test executable
-add_executable(PropertyParserTests tests/PropertyParserTests.cpp)
+add_executable(PropertyParserTests PropertyParserTests.cpp)
 target_link_libraries(PropertyParserTests prop_parser GTest::gtest_main)
 
-# Add test
-add_test(NAME PropertyParserTests COMMAND PropertyParserTests)
+# Вместо ctest: делаем цель `test`, которая напрямую запускает бинарник юнит-тестов.
+add_custom_target(run_test
+    COMMAND PropertyParserTests
+    DEPENDS PropertyParserTests
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
